@@ -26,31 +26,37 @@ def home():    # Runs when home page is accessed
 def health():
     return {"status": "ok"}
 
-# Search API: /api/search?q=activation&min_rating=2
 @app.get("/api/search")
 def search():
-    # Read query params with defaults
     q = (request.args.get("q", "") or "").lower()
     min_rating = int(request.args.get("min_rating", 1))
+    month = (request.args.get("month") or "").strip()      # e.g., "2023-11"
+    region = (request.args.get("region") or "").strip()    # e.g., "US", "EU", ...
 
-    # Query SQLite
+    sql = [
+        "SELECT survey_id, submitted_at, product_line, region, rating, comment_clean",
+        "FROM surveys",
+        "WHERE lower(comment_clean) LIKE ? AND rating >= ?"
+    ]
+    params = [f"%{q}%", min_rating]
+
+    # filter by month (submitted_at is YYYY-MM-DD → take first 7 chars)
+    if month:
+        sql.append("AND substr(submitted_at,1,7) = ?")
+        params.append(month)
+
+    # filter by region
+    if region and region.upper() != "ALL":
+        sql.append("AND region = ?")
+        params.append(region)
+
+    sql.append("ORDER BY submitted_at DESC LIMIT 200;")
+    sql = "\n".join(sql)
+
     con = db()
     try:
-        rows = con.execute(
-            """
-            SELECT survey_id, submitted_at, product_line, region, rating, comment_clean
-            FROM surveys
-            WHERE lower(comment_clean) LIKE ? AND rating >= ?
-            ORDER BY submitted_at DESC
-            LIMIT 200;
-            """,
-            (f"%{q}%", min_rating),
-        ).fetchall()
+        rows = con.execute(sql, params).fetchall()
     finally:
         con.close()
 
-    # Convert rows → JSON
     return jsonify([dict(r) for r in rows])
-
-if __name__ == "__main__":
-    app.run(debug=True)

@@ -1,57 +1,157 @@
-<!-- Just a Flask test for HTML -->
-
 <!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>AppleCare Customer Insights</title>
-    <style>
-      body{font-family:system-ui;margin:2rem}
-      input,select,button{padding:.5rem;margin:.5rem}
-      table{border-collapse:collapse;width:100%;margin-top:1rem}
-      th,td{border:1px solid #ddd;padding:.5rem;text-align:left}
-      th{background:#f4f4f4}
-    </style>
-  </head>
-  <body>
-    <h2>AppleCare Customer Insights — Search</h2>
-    <input id="q" placeholder="Type a keyword...">
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>AppleCare Customer Insights</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+  <!-- Header Bar -->
+  <header class="topbar">
+    <div class="branding">
+    <!-- Use url_for to reference static files, so we are using flask, no more local saves -->
+      <img src="{{ url_for('static', filename='apple-logo.png') }}" alt="Apple Logo">
+      <h1>AppleCare Customer Insights</h1>
+    </div>
+  </header>
+
+  <!-- Controls -->
+  <section class="controls">
+    <input id="q" placeholder="e.g., activation, battery">
     <label>Min Rating:</label>
     <select id="min_rating">
-      <option>1</option><option>2</option><option>3</option>
-      <option>4</option><option selected>5</option>
+      <option>1</option>
+      <option>2</option>
+      <option>3</option>
+      <option>4</option>
+      <option selected>5</option>
     </select>
-    <button onclick="run()">Search</button>
 
+    <label>Month:</label>
+    <input id="month" type="month"> <!-- returns 'YYYY-MM' -->
+
+    <label>Region:</label>
+    <select id="region">
+      <option>ALL</option>
+      <option>US</option>
+      <option>EU</option>
+      <option>APAC</option>
+      <option>LATAM</option>
+    </select>
+
+    <button onclick="run()">Search</button>
+    <button onclick="loadSummary()">Summary</button>
+  </section>
+
+  <!-- Results Table -->
+  <section class="results">
+    <h3>Survey Results</h3>
     <table id="tbl">
       <thead>
         <tr>
-          <th>Date</th><th>Product</th><th>Region</th>
-          <th>Rating</th><th>Comment</th>
+          <th>Date</th>
+          <th>Product</th>
+          <th>Region</th>
+          <th>Rating</th>
+          <th>Comment</th>
         </tr>
       </thead>
       <tbody></tbody>
     </table>
+  </section>
 
-    <script>
-      async function run(){
-        const q = document.getElementById('q').value;
-        const r = document.getElementById('min_rating').value;
-        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&min_rating=${r}`);
-        const data = await res.json();
-        const tb = document.querySelector('#tbl tbody');
-        tb.innerHTML = '';
-        for(const row of data){
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${row.submitted_at}</td>
-            <td>${row.product_line}</td>
-            <td>${row.region}</td>
-            <td>${row.rating}</td>
-            <td>${row.comment_clean}</td>`;
-          tb.appendChild(tr);
-        }
-      }
-    </script>
-  </body>
+  <!-- Summary Table -->
+  <section class="summary">
+    <h3>Monthly Summary</h3>
+    <table id="summary">
+      <thead>
+        <tr>
+          <th>Month</th>
+          <th>Region</th>
+          <th>Count</th>
+          <th>Avg Rating</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- Scripts -->
+  <script>
+  async function run(){
+    const q = document.getElementById('q').value;
+    const r = document.getElementById('min_rating').value;
+    const m = document.getElementById('month').value;   // "YYYY-MM" or ""
+    const reg = document.getElementById('region').value;
+
+    const url = new URL(`/api/search`, location.origin);
+    if (q) url.searchParams.set('q', q);
+    url.searchParams.set('min_rating', r);
+    if (m) url.searchParams.set('month', m);
+    if (reg && reg !== 'ALL') url.searchParams.set('region', reg);
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    const tb = document.querySelector('#tbl tbody');
+    tb.innerHTML = '';
+    for(const row of data){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${row.submitted_at ?? ''}</td>
+        <td>${row.product_line ?? ''}</td>
+        <td>${row.region ?? ''}</td>
+        <td class="rating">${row.rating ?? ''}</td>
+        <td>${row.comment_clean ?? ''}</td>`;
+      tb.appendChild(tr);
+    }
+
+    // Color code ratings
+    document.querySelectorAll('.rating').forEach(td => {
+      const val = parseInt(td.textContent);
+      if (val <= 2) td.style.color = "#e74c3c"; // red
+      else if (val === 3 || val === 4) td.style.color = "#f1c40f"; // yellow
+      else td.style.color = "#27ae60"; // green
+    });
+  }
+
+  async function loadSummary(){
+    const m = document.getElementById('month').value;
+    const reg = document.getElementById('region').value;
+
+    const url = new URL(`/api/summary`, location.origin);
+    if (m) url.searchParams.set('month', m);
+    if (reg && reg !== 'ALL') url.searchParams.set('region', reg);
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    const tb = document.querySelector('#summary tbody');
+    tb.innerHTML = '';
+    for (const row of data){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${row.month ?? ''}</td>
+        <td>${row.region ?? ''}</td>
+        <td>${row.count ?? 0}</td>
+        <td>${row.avg_rating ?? ''}</td>`;
+      tb.appendChild(tr);
+    }
+  }
+
+  // QoL: Enter key triggers search; initial load
+  window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('q').addEventListener('keydown', e => {
+      if (e.key === 'Enter') run();
+    });
+    run();
+    loadSummary();
+  });
+  </script>
+</body>
 </html>
+
+
+
+
