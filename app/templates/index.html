@@ -12,54 +12,65 @@
     <div class="branding">
     <!-- Use url_for to reference static files, so we are using flask, no more local saves -->
       <img src="{{ url_for('static', filename='apple-logo.png') }}" alt="Apple Logo">
-      <h1>AppleCare Customer Insights</h1>
+      <h1>AppleCare Customers Insights</h1>
     </div>
   </header>
 
   <!-- Controls -->
+<div class="box">
   <section class="controls">
-    <input id="q" placeholder="e.g., activation, battery">
-    <label>Min Rating:</label>
-    <select id="min_rating">
-      <option>1</option>
-      <option>2</option>
-      <option>3</option>
-      <option>4</option>
-      <option selected>5</option>
-    </select>
+    <div class="control-row">
+      <div class="field">
+        <span class="field-title">Keyword Search</span>
+        <input id="q" placeholder="e.g., activation, battery">
+      </div>
 
-    <label>Month:</label>
-    <input id="month" type="month"> <!-- returns 'YYYY-MM' -->
+      <div class="field">
+        <span class="field-title">Minimum Rating</span>
+        <select id="min_rating">
+          <option>1</option><option>2</option><option>3</option>
+          <option>4</option><option selected>5</option>
+        </select>
+      </div>
 
-    <label>Region:</label>
-    <select id="region">
-      <option>ALL</option>
-      <option>US</option>
-      <option>EU</option>
-      <option>APAC</option>
-      <option>LATAM</option>
-    </select>
+      <div class="field">
+        <span class="field-title">Month</span>
+        <input id="month" type="month">
+      </div>
 
-    <button onclick="run()">Search</button>
-    <button onclick="loadSummary()">Summary</button>
+      <div class="field">
+        <span class="field-title">Region</span>
+        <select id="region">
+          <option>ALL</option><option>US</option><option>EU</option>
+          <option>APAC</option><option>LATAM</option>
+        </select>
+      </div>
+
+      <div class="actions">
+        <button onclick="run()">Search</button>
+        <button onclick="loadSummary()">Summary</button>
+      </div>
+    </div>
   </section>
+</div>
 
   <!-- Results Table -->
   <section class="results">
     <h3>Survey Results</h3>
     <table id="tbl">
       <thead>
-        <tr>
-          <th>Date</th>
-          <th>Product</th>
-          <th>Region</th>
-          <th>Rating</th>
-          <th>Comment</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </section>
+            <tr>
+              <th>Date</th>
+              <th>Product</th>
+              <th>Region</th>
+              <th>Rating</th>
+              <th>Comment</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+  
 
   <!-- Summary Table -->
   <section class="summary">

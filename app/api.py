@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, jsonify
 
 # Creating Flask Application
 app = Flask(__name__)
+app.config["TEMPLATES_AUTO_RELOAD"] = True #Auto reloading like react, makes life easier
 
 # ---- DB connection helper ----
 def db():
