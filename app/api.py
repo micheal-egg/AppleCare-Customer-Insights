@@ -31,8 +31,14 @@ def health():
 def search():
     q = (request.args.get("q", "") or "").lower()
     min_rating = int(request.args.get("min_rating", 1))
-    month = (request.args.get("month") or "").strip()      # e.g., "2023-11"
-    region = (request.args.get("region") or "").strip()    # e.g., "US", "EU", ...
+    month = (request.args.get("month") or "").strip()
+    region = (request.args.get("region") or "").strip()
+
+    #The API will call only 50 results at a time
+    limit = int(request.args.get("limit", 50))
+    #The API will skip the first 'offset' results
+    offset = int(request.args.get("offset", 0))
+
 
     sql = [
         "SELECT survey_id, submitted_at, product_line, region, rating, comment_clean",
@@ -41,17 +47,18 @@ def search():
     ]
     params = [f"%{q}%", min_rating]
 
-    # filter by month (submitted_at is YYYY-MM-DD → take first 7 chars)
     if month:
         sql.append("AND substr(submitted_at,1,7) = ?")
         params.append(month)
 
-    # filter by region
     if region and region.upper() != "ALL":
         sql.append("AND region = ?")
         params.append(region)
 
-    sql.append("ORDER BY submitted_at DESC LIMIT 200;")
+    # Makes sure that newest surveys come first and stops it at 50 results
+    sql.append("ORDER BY submitted_at DESC LIMIT ? OFFSET ?;")
+    params.extend([limit, offset])
+
     sql = "\n".join(sql)
 
     con = db()
@@ -61,3 +68,6 @@ def search():
         con.close()
 
     return jsonify([dict(r) for r in rows])
+
+if __name__ == "__main__":
+    app.run(debug=True)

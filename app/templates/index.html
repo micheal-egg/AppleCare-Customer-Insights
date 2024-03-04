@@ -28,8 +28,8 @@
       <div class="field">
         <span class="field-title">Minimum Rating</span>
         <select id="min_rating">
-          <option>1</option><option>2</option><option>3</option>
-          <option>4</option><option selected>5</option>
+          <option selected>1</option><option>2</option><option>3</option>
+          <option>4</option><option>5</option>
         </select>
       </div>
 
@@ -69,6 +69,11 @@
           </thead>
           <tbody></tbody>
         </table>
+        <div style="display:flex;justify-content:center;margin:1rem 0;">
+        <button id="showMoreBtn" onclick="showMore()" style="display:none;">
+        Show more
+         </button>
+        </div>
       </section>
   
 
@@ -89,11 +94,16 @@
   </section>
 
   <!-- Scripts -->
-  <script>
-  async function run(){
+<script>
+  // Tracks number of rows loaded 
+  let currentOffset = 0;
+  // Number of rows to load per request
+  const PAGE_SIZE = 50;
+
+  function buildSearchURL(limit, offset){
     const q = document.getElementById('q').value;
     const r = document.getElementById('min_rating').value;
-    const m = document.getElementById('month').value;   // "YYYY-MM" or ""
+    const m = document.getElementById('month').value;
     const reg = document.getElementById('region').value;
 
     const url = new URL(`/api/search`, location.origin);
@@ -102,12 +112,47 @@
     if (m) url.searchParams.set('month', m);
     if (reg && reg !== 'ALL') url.searchParams.set('region', reg);
 
+    url.searchParams.set('limit', limit);
+    url.searchParams.set('offset', offset);
+
+    return url;
+  }
+
+  function colorCodeRatings(){
+    document.querySelectorAll('.rating').forEach(td => {
+      const val = parseInt(td.textContent);
+      if (val <= 2) td.style.color = "#e74c3c";
+      else if (val === 3 || val === 4) td.style.color = "#f1c40f";
+      else td.style.color = "#27ae60";
+    });
+  }
+
+  async function run(){
+    // reset offset
+    currentOffset = 0;
+
+    const tb = document.querySelector('#tbl tbody');
+    tb.innerHTML = '';
+
+    await fetchAndRender(PAGE_SIZE, currentOffset, /*append=*/false);
+  }
+
+  async function showMore(){
+    //Adds Rows to existing table
+    currentOffset += PAGE_SIZE;
+    await fetchAndRender(PAGE_SIZE, currentOffset, /*append=*/true);
+  }
+
+  async function fetchAndRender(limit, offset, append){
+    const url = buildSearchURL(limit, offset);
+
     const res = await fetch(url);
     const data = await res.json();
 
     const tb = document.querySelector('#tbl tbody');
-    tb.innerHTML = '';
-    for(const row of data){
+
+    // Append rows (table already cleared in run())
+    for (const row of data){
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${row.submitted_at ?? ''}</td>
@@ -118,13 +163,16 @@
       tb.appendChild(tr);
     }
 
-    // Color code ratings
-    document.querySelectorAll('.rating').forEach(td => {
-      const val = parseInt(td.textContent);
-      if (val <= 2) td.style.color = "#e74c3c"; // red
-      else if (val === 3 || val === 4) td.style.color = "#f1c40f"; // yellow
-      else td.style.color = "#27ae60"; // green
-    });
+    colorCodeRatings();
+
+    // Show/hide the button:
+    // If we received fewer than PAGE_SIZE, there are no more rows.
+    const btn = document.getElementById('showMoreBtn');
+    if (data.length === PAGE_SIZE) {
+      btn.style.display = 'inline-block';
+    } else {
+      btn.style.display = 'none';
+    }
   }
 
   async function loadSummary(){
@@ -151,15 +199,15 @@
     }
   }
 
-  // QoL: Enter key triggers search; initial load
   window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('q').addEventListener('keydown', e => {
       if (e.key === 'Enter') run();
     });
-    run();
+
+    run();        // loads first 50
     loadSummary();
   });
-  </script>
+</script>
 </body>
 </html>
 
